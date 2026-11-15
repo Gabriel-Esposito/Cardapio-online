@@ -2,6 +2,7 @@ const $ = (id) => document.getElementById(id);
 const dinheiro = (n) => Number(n).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
 let produtos = [], categoria = 0;
 const carrinho = new Map();
+let intervalosImagens = [];
 $('ano').textContent = new Date().getFullYear();
 
 function elemento(tag, classe, texto) {
@@ -24,6 +25,8 @@ function renderProdutos() {
   const termo = $('busca').value.toLocaleLowerCase('pt-BR').trim();
   const filtrados = produtos.filter(p => (!categoria || p.categoria_id === categoria) &&
     (p.nome + ' ' + p.descricao).toLocaleLowerCase('pt-BR').includes(termo));
+  intervalosImagens.forEach(clearInterval);
+  intervalosImagens = [];
   $('grade-produtos').replaceChildren();
   $('mensagem-cardapio').textContent = filtrados.length ? '' : 'Nenhum doce encontrado.';
   for (const p of filtrados) {
@@ -32,10 +35,19 @@ function renderProdutos() {
     if(p.imagens.length){
       let atual=0;const img=document.createElement('img');img.alt=`Imagem de ${p.nome}`;img.src=`/api/imagens/${p.imagens[0]}`;art.append(img);
       if(p.imagens.length>1){
+        const trocarImagem=(delta)=>{atual=(atual+delta+p.imagens.length)%p.imagens.length;img.src=`/api/imagens/${p.imagens[atual]}`;};
+        let intervalo=setInterval(()=>trocarImagem(1),3000);
+        intervalosImagens.push(intervalo);
         const controles=elemento('div','image-controls');
         for(const [texto,delta] of [['‹',-1],['›',1]]){
           const btn=elemento('button','',texto);btn.type='button';btn.setAttribute('aria-label',delta<0?'Imagem anterior':'Próxima imagem');
-          btn.addEventListener('click',()=>{atual=(atual+delta+p.imagens.length)%p.imagens.length;img.src=`/api/imagens/${p.imagens[atual]}`;});controles.append(btn);
+          btn.addEventListener('click',()=>{
+            trocarImagem(delta);
+            clearInterval(intervalo);
+            const indice=intervalosImagens.indexOf(intervalo);
+            intervalo=setInterval(()=>trocarImagem(1),3000);
+            intervalosImagens[indice]=intervalo;
+          });controles.append(btn);
         }
         art.append(controles);
       }

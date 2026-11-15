@@ -13,7 +13,7 @@ Projeto acadêmico simples de uma doceria, com **HTML + CSS + JavaScript puro**,
 - Menu lateral com dashboard, pedidos ativos e histórico de pedidos concluídos e cancelados.
 - Administradores cadastram funcionários e outros administradores; funcionários gerenciam pedidos.
 - Administradores podem listar, editar e excluir usuários. É necessário manter pelo menos um administrador; ao excluir a própria conta, a sessão é encerrada.
-- Produtos podem ter até três imagens (PNG, JPEG ou GIF, até 2 MB cada); sem capa usa o emoji da categoria.
+- Produtos podem ter até três imagens (PNG, JPEG ou GIF, até 2 MB cada); com mais de uma, o carrossel avança a cada 3 segundos. Sem capa usa o emoji da categoria.
 - Forma de pagamento registrada no pedido: dinheiro, Pix, cartão de crédito ou débito.
 - Faturamento dos pedidos concluídos calculado pela soma dos preços registrados nos pedidos, sem descontar custos.
 
