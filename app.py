@@ -403,6 +403,84 @@ def consultar_pedidos_cliente():
         db.close()
 
 
+@app.post('/api/cancelar-pedido')
+def cancelar_pedido_cliente():
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return json_error('Informe o código do pedido e o telefone cadastrado.')
+    codigo = str(data.get('codigo', '')).strip()
+    telefone_informado = str(data.get('telefone', '')).strip()
+    telefone = re.sub(r'\D', '', telefone_informado)
+    if (not re.fullmatch(r'[1-9]\d{0,9}', codigo)
+            or int(codigo) > 2147483647
+            or not re.fullmatch(r'[+()\d\s-]{8,30}', telefone_informado)
+            or len(telefone) < 8):
+        return json_error('Informe um código e telefone válidos.')
+
+    db = connect()
+    try:
+        with db.cursor() as cursor:
+            cursor.execute('SELECT telefone,status FROM pedidos WHERE id=%s FOR UPDATE', (int(codigo),))
+            order = cursor.fetchone()
+            if not order or re.sub(r'\D', '', order['telefone']) != telefone:
+                return json_error('Pedido não encontrado com esse código e telefone.', 404)
+            if order['status'] != 'Recebido':
+                return json_error('Não é possível cancelar um pedido que já está sendo preparado ou foi concluído.', 409)
+            cursor.execute("UPDATE pedidos SET status='Cancelado' WHERE id=%s AND status='Recebido'",
+                           (int(codigo),))
+            if cursor.rowcount != 1:
+                return json_error('O pedido não está mais disponível para cancelamento.', 409)
+        db.commit()
+        return jsonify({'ok': True})
+    finally:
+        db.close()
+
+
+@app.post('/api/cancelar-todos-pedidos')
+def cancelar_todos_pedidos_cliente():
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return json_error('Informe nome e telefone válidos.')
+    cliente = str(data.get('cliente', '')).strip()
+    telefone_informado = str(data.get('telefone', '')).strip()
+    telefone = re.sub(r'\D', '', telefone_informado)
+    codigos_informados = data.get('codigos')
+    if (not 2 <= len(cliente) <= 120
+            or not re.fullmatch(r'[+()\d\s-]{8,30}', telefone_informado)
+            or len(telefone) < 8
+            or not isinstance(codigos_informados, list)
+            or not codigos_informados):
+        return json_error('Informe nome e telefone válidos.')
+    codigos = set()
+    for codigo in codigos_informados:
+        codigo = str(codigo).strip()
+        if not re.fullmatch(r'[1-9]\d{0,9}', codigo) or int(codigo) > 2147483647:
+            return json_error('Há códigos de pedido inválidos.')
+        codigos.add(int(codigo))
+
+    db = connect()
+    try:
+        with db.cursor() as cursor:
+            cursor.execute('''SELECT id,telefone,status FROM pedidos
+                              WHERE LOWER(cliente)=LOWER(%s) FOR UPDATE''', (cliente,))
+            orders = [order for order in cursor.fetchall()
+                      if re.sub(r'\D', '', order['telefone']) == telefone
+                      and order['id'] in codigos]
+            if not orders:
+                return json_error('Nenhum pedido encontrado com esses dados.', 404)
+            cancelaveis = [order['id'] for order in orders if order['status'] == 'Recebido']
+            if not cancelaveis:
+                return json_error('Nenhum pedido encontrado que ainda possa ser cancelado.', 409)
+            for order_id in cancelaveis:
+                cursor.execute("UPDATE pedidos SET status='Cancelado' WHERE id=%s AND status='Recebido'",
+                               (order_id,))
+            nao_cancelados = [order['id'] for order in orders if order['status'] != 'Recebido']
+        db.commit()
+        return jsonify({'cancelados': cancelaveis, 'nao_cancelados': nao_cancelados})
+    finally:
+        db.close()
+
+
 @app.get('/api/pedidos')
 @admin_required
 def listar_pedidos():

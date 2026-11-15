@@ -41,6 +41,7 @@ let testUsers = [{id:2, usuario:'func-teste', perfil:'funcionario'}];
 const testOrder = {id:42, cliente:'Cliente', criado_em:'01/01/2026 10:00', telefone:'12345678',
   status:'Recebido', total:10, forma_pagamento:'Pix', observacao:'',
   itens:[{nome_produto:'Bolo', quantidade:1, subtotal:10}]};
+const secondTestOrder = {...testOrder, id:43, criado_em:'02/01/2026 10:00'};
 window.fetch = async (path, opts={}) => {
   await Promise.resolve();
   calls.push([path, opts.method || 'GET', opts.body]);
@@ -56,7 +57,19 @@ window.fetch = async (path, opts={}) => {
   else if (path === '/api/pedidos' && opts.method === 'POST') data = {pedido_id:42, total:10};
   else if (path === '/api/meus-pedidos' && opts.method === 'POST') {
     const customer = JSON.parse(opts.body);
-    data = customer.cliente === 'Cliente' && customer.telefone === '(32) 99999-9999' ? [testOrder] : [];
+    data = customer.cliente === 'Cliente' && customer.telefone === '(32) 99999-9999'
+      ? [testOrder, secondTestOrder] : [];
+  }
+  else if (path === '/api/cancelar-pedido' && opts.method === 'POST') {
+    const codigo = Number(JSON.parse(opts.body).codigo);
+    [testOrder, secondTestOrder].find(order => order.id === codigo).status = 'Cancelado';
+  }
+  else if (path === '/api/cancelar-todos-pedidos' && opts.method === 'POST') {
+    const request = JSON.parse(opts.body);
+    const pedidos = [testOrder, secondTestOrder].filter(order => request.codigos.includes(String(order.id)));
+    data = {cancelados:pedidos.filter(order => order.status === 'Recebido').map(order => order.id),
+      nao_cancelados:pedidos.filter(order => order.status !== 'Recebido').map(order => order.id)};
+    pedidos.forEach(order => {if (data.cancelados.includes(order.id)) order.status = 'Cancelado';});
   }
   else if (path === '/api/pedidos' && opts.method === 'GET') data = [testOrder];
   else if (path === '/api/pedidos/42/status' && opts.method === 'PATCH') testOrder.status = JSON.parse(opts.body).status;
@@ -185,9 +198,14 @@ window.addEventListener('load', async () => {
       $('forma-pagamento').value = 'Pix';
       $('form-pedido').requestSubmit();
       await wait();
-      check($('mensagem-pedido').textContent.includes('Pedido #42 registrado com sucesso'), $('mensagem-pedido').textContent);
+      check($('mensagem-pedido').textContent.includes('Pedido registrado com sucesso') &&
+        !$('mensagem-pedido').textContent.includes('#42'), $('mensagem-pedido').textContent);
       const feedback = document.querySelector('.feedback-modal');
       check(feedback.open && feedback.dataset.type === 'success', 'Confirmação do pedido não apareceu');
+      check(!$('feedback-modal-message').textContent.includes('#42') &&
+        $('feedback-modal-message').textContent.includes('Meus pedidos') &&
+        $('feedback-modal-message').textContent.includes('cancelar'),
+        'A confirmação não orientou onde consultar o ID para cancelamento');
       const feedbackRect = feedback.getBoundingClientRect();
       check(Math.abs(feedbackRect.left + feedbackRect.width/2 - document.documentElement.clientWidth/2) < 2 &&
         Math.abs(feedbackRect.top + feedbackRect.height/2 - document.documentElement.clientHeight/2) < 2,
@@ -198,9 +216,61 @@ window.addEventListener('load', async () => {
       $('historico-telefone').value = '(32) 99999-9999';
       $('form-historico').requestSubmit();
       await wait();
-      check($('historico-mensagem').textContent.includes('1 pedido'), $('historico-mensagem').textContent);
+      check($('historico-mensagem').textContent.includes('2 pedido'), $('historico-mensagem').textContent);
       check($('lista-meus-pedidos').textContent.includes('Pedido #42') &&
+        $('lista-meus-pedidos').textContent.includes('Pedido #43') &&
         $('lista-meus-pedidos').textContent.includes('Bolo'), 'Histórico de pedidos não foi exibido');
+      $('lista-meus-pedidos').querySelector('.order-cancel').click();
+      await wait();
+      const cancelConfirmation = document.querySelector('.feedback-modal');
+      check(cancelConfirmation.open && cancelConfirmation.dataset.type === 'warning' &&
+        $('feedback-modal-message').textContent.includes('Digite o ID do pedido') &&
+        !$('feedback-modal-input').classList.contains('hidden') &&
+        $('feedback-modal-input-label').textContent === 'ID do pedido' &&
+        $('feedback-modal-input').placeholder === 'Digite o ID do pedido',
+        'Modal para digitar o ID não apareceu');
+      $('feedback-modal-input').value = '999';
+      cancelConfirmation.querySelector('[data-modal-accept]').click();
+      await wait();
+      check(!calls.some(([path]) => path === '/api/cancelar-pedido'), 'ID incorreto foi enviado para a API');
+      check($('feedback-modal-message').textContent.includes('não corresponde'),
+        `Erro de código inválido não apareceu: ${$('feedback-modal-message').textContent}`);
+      document.querySelector('.feedback-modal').querySelector('[data-modal-accept]').click();
+      await wait();
+      $('lista-meus-pedidos').querySelector('.order-cancel').click();
+      await wait();
+      $('feedback-modal-input').value = '42';
+      document.querySelector('.feedback-modal').querySelector('[data-modal-accept]').click();
+      await wait();
+      const cancellation = calls.find(([path, method]) => path === '/api/cancelar-pedido' && method === 'POST');
+      check(cancellation && JSON.parse(cancellation[2]).codigo === '42' &&
+        JSON.parse(cancellation[2]).telefone === '(32) 99999-9999',
+        `Código ou telefone não foram enviados para cancelar: ${JSON.stringify(cancellation)}`);
+      const cancelled = document.querySelector('.feedback-modal');
+      check(cancelled.open && cancelled.dataset.type === 'success' &&
+        $('lista-meus-pedidos').querySelector('[data-order-id="42"] .order-status').textContent === 'Cancelado' &&
+        !$('lista-meus-pedidos').querySelector('[data-order-id="42"] .order-cancel'),
+        'Cancelamento individual não foi confirmado na lista');
+      cancelled.querySelector('[data-modal-accept]').click();
+      const cancelAll = $('cancelar-todos-pedidos');
+      check(!cancelAll.classList.contains('hidden') && cancelAll.textContent.includes('(1)'),
+        'Ação para cancelar todos os pedidos restantes não apareceu');
+      cancelAll.click();
+      await wait();
+      const cancelAllConfirmation = document.querySelector('.feedback-modal');
+      check(cancelAllConfirmation.open && $('feedback-modal-message').textContent.includes('IDs dos pedidos') &&
+        $('feedback-modal-input').placeholder === 'IDs separados por vírgula',
+        `Modal para digitar os IDs de cancelamento não apareceu: ${$('feedback-modal-message').textContent} / ${$('feedback-modal-input').placeholder}`);
+      $('feedback-modal-input').value = '43';
+      cancelAllConfirmation.querySelector('[data-modal-accept]').click();
+      await wait();
+      const cancelAllRequest = calls.find(([path, method]) => path === '/api/cancelar-todos-pedidos' && method === 'POST');
+      check(cancelAllRequest && JSON.parse(cancelAllRequest[2]).cliente === 'Cliente' &&
+        JSON.parse(cancelAllRequest[2]).telefone === '(32) 99999-9999' &&
+        JSON.stringify(JSON.parse(cancelAllRequest[2]).codigos) === '["43"]' &&
+        $('lista-meus-pedidos').querySelector('[data-order-id="43"] .order-status').textContent === 'Cancelado' &&
+        $('cancelar-todos-pedidos').classList.contains('hidden'), 'Cancelamento de todos não foi aplicado');
+      document.querySelector('.feedback-modal').querySelector('[data-modal-accept]').click();
     }
     document.body.dataset.testResult = 'OK';
   } catch (error) {

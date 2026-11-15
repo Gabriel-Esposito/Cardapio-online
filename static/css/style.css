@@ -9,4 +9,6 @@
 .feedback-modal p{color:var(--muted);margin:0;white-space:pre-line}
 .feedback-modal-actions{display:flex;justify-content:center;gap:10px;margin-top:24px}
 .feedback-modal-actions .btn{min-width:110px}
+#feedback-modal-input-label{display:block;margin-top:18px;text-align:left}
+#feedback-modal-input{text-align:center}
 @media(max-width:450px){.feedback-modal-content{padding:26px 20px}.feedback-modal-actions{flex-direction:column-reverse}.feedback-modal-actions .btn{width:100%}}
