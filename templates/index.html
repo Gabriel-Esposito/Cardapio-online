@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Doce Encanto — Cardápio Online</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/melhorias.css">
+  <script src="/static/js/publico.js" defer></script>
+</head>
+<body>
+<header class="topbar wrap"><a class="logo" href="/">🍓 <span>Doce Encanto</span></a><nav><a href="#cardapio">Cardápio</a><a href="#sobre">Sobre nós</a><a class="admin-link" href="/login">Área administrativa</a></nav></header>
+<section class="hero"><div class="wrap hero-inner"><div><span class="eyebrow">Feito com carinho, todos os dias</span><h1>Um pedacinho de <em>felicidade</em> em cada doce.</h1><p>Bolos, brigadeiros e sobremesas preparados para deixar seu dia mais gostoso.</p><a class="btn primary" href="#cardapio">Explorar o cardápio ↓</a></div><div class="hero-art" aria-hidden="true">🧁<span>🍰</span></div></div></section>
+<main class="wrap" id="cardapio"><div class="section-head"><div><span class="eyebrow">Escolha seu favorito</span><h2>Nosso cardápio</h2><p>Adicione doces ao carrinho e faça seu pedido online.</p></div><div class="search"><label for="busca">Buscar doce</label><input id="busca" placeholder="Ex.: chocolate" autocomplete="off"></div></div><div id="categorias" class="filters" aria-label="Filtrar categoria"></div><p id="mensagem-cardapio" class="muted" role="status"></p><div id="grade-produtos" class="products"></div></main>
+<section class="about" id="sobre"><div class="wrap"><span class="eyebrow">Quem somos</span><h2>Doces feitos com amor 💗</h2><p>Uma doceria fictícia criada como projeto acadêmico para demonstrar um cardápio online integrado a um banco de dados MySQL.</p></div></section>
+<footer class="footer"><div class="wrap">© <span id="ano"></span> Doce Encanto · Projeto universitário · <a href="/login">Administrar</a></div></footer>
+<button id="botao-carrinho" class="cart-float" aria-controls="painel-carrinho" aria-expanded="false">🛒 Meu carrinho <span id="contador">0</span></button>
+<div id="overlay" class="overlay hidden"></div>
+<aside id="painel-carrinho" class="drawer" aria-label="Carrinho de compras" aria-hidden="true"><div class="drawer-head"><h2>Seu pedido 🛍️</h2><button id="fechar-carrinho" class="icon-button" aria-label="Fechar">✕</button></div><div id="itens-carrinho" class="cart-items"></div><div class="cart-bottom"><div class="total"><span>Total</span><strong id="total">R$ 0,00</strong></div><form id="form-pedido"><label>Seu nome <input id="cliente" maxlength="120" minlength="2" required placeholder="Nome completo"></label><label>Telefone <input id="telefone" maxlength="30" minlength="8" required placeholder="(32) 99999-9999"></label><label>Forma de pagamento <select id="forma-pagamento" required><option value="">Selecione</option><option>Dinheiro</option><option>Pix</option><option>Cartão de Crédito</option><option>Cartão de Débito</option></select></label><label>Observações <textarea id="observacao" maxlength="500" rows="2" placeholder="Ex.: sem cobertura"></textarea></label><button class="btn primary full" type="submit">Finalizar pedido</button><p id="mensagem-pedido" role="status"></p></form></div></aside>
+</body></html>
