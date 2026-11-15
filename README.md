@@ -6,13 +6,13 @@ Projeto acadêmico simples de uma doceria, com **HTML + CSS + JavaScript puro**,
 - Cardápio público com pesquisa por nome e filtro de categoria.
 - Carrinho com alteração de quantidades, total e finalização de pedido.
 - Pedidos salvos em MySQL (o total é recalculado pelo servidor).
-- Login do administrador (senha criptografada com hash).
+- Login do administrador (senha criptografada com hash), com opção de mostrar ou ocultar a senha.
 - Painel: cadastrar, editar, excluir e marcar produtos como disponíveis.
 - Painel: visualizar pedidos e alterar status.
 - Visual responsivo para celular e computador.
 - Menu lateral com dashboard, pedidos ativos e histórico de pedidos concluídos e cancelados.
 - Administradores cadastram funcionários e outros administradores; funcionários gerenciam pedidos.
-- Administradores podem listar e editar usuários, incluindo nome de acesso, perfil e senha. É necessário manter pelo menos um administrador.
+- Administradores podem listar, editar e excluir usuários. É necessário manter pelo menos um administrador; ao excluir a própria conta, a sessão é encerrada.
 - Produtos podem ter até três imagens (PNG, JPEG ou GIF, até 2 MB cada); sem capa usa o emoji da categoria.
 - Forma de pagamento registrada no pedido: dinheiro, Pix, cartão de crédito ou débito.
 - Faturamento dos pedidos concluídos calculado pela soma dos preços registrados nos pedidos, sem descontar custos.
@@ -135,6 +135,7 @@ doceria_online/
 | POST | `/api/usuarios` | Cadastrar administrador ou funcionário (admin) |
 | GET | `/api/usuarios` | Listar usuários (admin) |
 | PUT | `/api/usuarios/<id>` | Editar usuário, perfil e senha opcional (admin) |
+| DELETE | `/api/usuarios/<id>` | Excluir usuário (admin; mantém pelo menos um administrador) |
 | GET | `/api/imagens/<id>` | Exibir imagem de produto |
 
 ## Observações para apresentação

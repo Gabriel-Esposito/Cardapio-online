@@ -27,6 +27,8 @@ const product = {id: 1, nome: 'Bolo', categoria_id: 1, categoria: 'Bolos',
   disponivel: true, imagens: []};
 const calls = [];
 let testUsers = [{id:2, usuario:'func-teste', perfil:'funcionario'}];
+let confirmDeletion = true;
+window.confirm = () => confirmDeletion;
 const testOrder = {id:42, cliente:'Cliente', criado_em:'01/01/2026 10:00', telefone:'12345678',
   status:'Recebido', total:10, forma_pagamento:'Pix', observacao:'',
   itens:[{nome_produto:'Bolo', quantidade:1, subtotal:10}]};
@@ -46,6 +48,8 @@ window.fetch = async (path, opts={}) => {
     testUsers.push({id:3, ...JSON.parse(opts.body)});
   } else if (path === '/api/usuarios/2' && opts.method === 'PUT') {
     testUsers[0] = {id:2, ...JSON.parse(opts.body)}; data = {ok:true, perfil_atual:'admin'};
+  } else if (path === '/api/usuarios/2' && opts.method === 'DELETE') {
+    testUsers = testUsers.filter(user => user.id !== 2);
   }
   return {ok:true, json:async () => data};
 };
@@ -92,12 +96,32 @@ window.addEventListener('load', async () => {
       const update = calls.find(([path, method]) => path === '/api/usuarios/2' && method === 'PUT');
       check(update && JSON.parse(update[2]).senha === '', 'Senha não foi preservada na edição');
       check($('tabela-usuarios').textContent.includes('func-alterado'), 'Lista não foi atualizada');
+      $('tabela-usuarios').querySelector('button').click();
+      confirmDeletion = false;
+      $('tabela-usuarios').querySelectorAll('button')[1].click();
+      await wait();
+      check(!calls.some(([path, method]) => path === '/api/usuarios/2' && method === 'DELETE'), 'Exclusão cancelada foi enviada');
+      confirmDeletion = true;
+      $('tabela-usuarios').querySelectorAll('button')[1].click();
+      await wait();
+      check(calls.some(([path, method]) => path === '/api/usuarios/2' && method === 'DELETE'), 'Exclusão não foi enviada');
+      check(!$('tabela-usuarios').textContent.includes('func-alterado') && !$('usuario-id').value, 'Lista ou formulário não foi atualizado');
       document.querySelector('[data-tab="pedidos"]').click();
       await wait();
       const status = $('lista-pedidos').querySelector('select');
       status.value = 'Concluído'; status.dispatchEvent(new Event('change', {bubbles:true}));
       await wait();
       check($('total-faturamento').textContent.includes('10,00'), 'Faturamento não atualizou ao concluir pedido');
+    } else if ($('form-login')) {
+      const password = $('login-senha'), toggle = $('alternar-senha');
+      password.value = 'senha123';
+      check(password.type === 'password', 'Senha deve iniciar oculta');
+      toggle.click();
+      check(password.type === 'text' && password.value === 'senha123' && toggle.getAttribute('aria-pressed') === 'true'
+        && toggle.getAttribute('aria-label') === 'Ocultar senha', 'Senha não ficou visível');
+      toggle.click();
+      check(password.type === 'password' && password.value === 'senha123' && toggle.getAttribute('aria-pressed') === 'false'
+        && toggle.getAttribute('aria-label') === 'Mostrar senha' && !calls.length, 'Senha não voltou a ficar oculta');
     } else {
       document.querySelector('.product-bottom button').click();
       $('cliente').value = 'Cliente'; $('telefone').value = '12345678';
@@ -131,6 +155,10 @@ class FrontendTests(unittest.TestCase):
             return render_template('admin.html', csrf='teste', perfil='admin').replace(
                 '</body>', MOCK_AND_TEST + '</body>')
 
+        @fixture.get('/login')
+        def login_page():
+            return render_template('login.html').replace('</body>', MOCK_AND_TEST + '</body>')
+
         cls.server = make_server('127.0.0.1', 0, fixture)
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
         cls.thread.start()
@@ -158,6 +186,9 @@ class FrontendTests(unittest.TestCase):
 
     def test_admin_modal_and_user_creation(self):
         self.check_page('/admin')
+
+    def test_login_password_visibility(self):
+        self.check_page('/login')
 
 
 if __name__ == '__main__':
