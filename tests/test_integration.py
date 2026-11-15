@@ -96,6 +96,17 @@ class IntegrationTests(unittest.TestCase):
         response = self.client.post('/api/pedidos', json=order)
         self.assertEqual(response.status_code, 201)
         order_id = response.json['pedido_id']
+        history = self.client.post('/api/meus-pedidos',
+            json={'cliente': 'Cliente', 'telefone': '(12) 3456-78'})
+        self.assertEqual(history.status_code, 200)
+        self.assertEqual([item['id'] for item in history.json], [order_id])
+        self.assertEqual(history.json[0]['itens'][0]['nome_produto'], 'Teste')
+        self.assertRegex(history.json[0]['criado_em'], r'^\d{2}/\d{2}/\d{4} \d{2}:\d{2}$')
+        self.assertNotIn('telefone', history.json[0])
+        self.assertEqual(self.client.post('/api/meus-pedidos',
+            json={'cliente': 'Cliente', 'telefone': '87654321'}).json, [])
+        self.assertEqual(self.client.post('/api/meus-pedidos',
+            json={'cliente': 'Outra pessoa', 'telefone': '12345678'}).json, [])
         db = site.connect()
         try:
             with db.cursor() as cursor:

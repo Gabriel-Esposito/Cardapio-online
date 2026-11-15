@@ -124,6 +124,7 @@ doceria_online/
 | GET | `/api/categorias` | Listar categorias |
 | GET | `/api/produtos` | Listar produtos |
 | POST | `/api/pedidos` | Criar pedido |
+| POST | `/api/meus-pedidos` | Consultar pedidos pelo nome e telefone do cliente |
 | POST | `/api/login` | Autenticar administrador |
 | POST | `/api/logout` | Encerrar sessão |
 | POST | `/api/produtos` | Criar produto (admin) |

@@ -20,4 +20,10 @@
 .image-controls{position:absolute;bottom:8px;right:8px;display:flex;gap:5px}
 .image-controls button{border:0;border-radius:50%;width:32px;height:32px;background:#fff;color:var(--ink);font-size:1.3rem}
 .cart-bottom{overflow-y:auto;max-height:75vh}
+.customer-history{padding:65px 0;background:#fff}
+.history-form{display:grid;grid-template-columns:1fr 1fr auto;align-items:end;gap:15px;max-width:850px}
+.history-form label{margin:0}
+#historico-mensagem{margin:18px 0}
+.order-status{color:var(--pink-dark)}
 @media(max-width:800px){.admin-shell{grid-template-columns:1fr;gap:0}.admin-sidebar{position:static;margin-top:15px}.admin-sidebar nav{display:flex;overflow-x:auto}.admin-sidebar .tab{white-space:nowrap}.admin-main{padding-top:25px}}
+@media(max-width:650px){.history-form{grid-template-columns:1fr}.history-form .btn{width:100%}}
