@@ -25,6 +25,17 @@ MOCK_AND_TEST = r"""
 const product = {id: 1, nome: 'Bolo', categoria_id: 1, categoria: 'Bolos',
   categoria_emoji: '🍰', preco: 10, custo: 4, emoji: '🍰', descricao: '',
   disponivel: true, imagens: []};
+const intervals = new Map();
+let nextInterval = 0;
+if (location.pathname === '/') {
+  product.imagens = [11, 12, 13];
+  window.setInterval = (callback, delay) => {
+    const id = ++nextInterval;
+    intervals.set(id, {callback, delay});
+    return id;
+  };
+  window.clearInterval = id => intervals.delete(id);
+}
 const calls = [];
 let testUsers = [{id:2, usuario:'func-teste', perfil:'funcionario'}];
 let confirmDeletion = true;
@@ -39,7 +50,11 @@ window.fetch = async (path, opts={}) => {
   if (path === '/api/dashboard') data = {espera:0, ativos:0, atendidos:0,
     faturamento:testOrder.status === 'Concluído' ? testOrder.total : 0};
   else if (path === '/api/categorias') data = [{id:1, nome:'Bolos', emoji:'🍰'}];
-  else if (path === '/api/produtos' && (!opts.method || opts.method === 'GET')) data = [product];
+  else if (path === '/api/produtos' && (!opts.method || opts.method === 'GET')) {
+    data = location.pathname === '/' ? [product,
+      {...product, id:2, nome:'Uma imagem', imagens:[21]},
+      {...product, id:3, nome:'Sem imagem', imagens:[]}] : [product];
+  }
   else if (path === '/api/pedidos' && opts.method === 'POST') data = {pedido_id:42, total:10};
   else if (path === '/api/meus-pedidos' && opts.method === 'POST') {
     const customer = JSON.parse(opts.body);
@@ -127,6 +142,32 @@ window.addEventListener('load', async () => {
       check(password.type === 'password' && password.value === 'senha123' && toggle.getAttribute('aria-pressed') === 'false'
         && toggle.getAttribute('aria-label') === 'Mostrar senha' && !calls.length, 'Senha não voltou a ficar oculta');
     } else {
+      const cards = document.querySelectorAll('.product');
+      const image = cards[0].querySelector('img');
+      const currentImage = () => image.getAttribute('src');
+      check(currentImage() === '/api/imagens/11' && intervals.size === 1,
+        'Carrossel inicial incorreto');
+      check(cards[1].querySelector('img').getAttribute('src') === '/api/imagens/21' &&
+        !cards[1].querySelector('.image-controls') && !cards[2].querySelector('img') &&
+        cards[2].querySelector('.product-art').textContent === '🍰', 'Produtos sem carrossel incorretos');
+      let timer = [...intervals.values()][0];
+      check(timer.delay === 3000, 'Intervalo do carrossel incorreto');
+      timer.callback();
+      check(currentImage() === '/api/imagens/12', 'Carrossel não avançou');
+      timer.callback(); timer.callback();
+      check(currentImage() === '/api/imagens/11', 'Carrossel não reiniciou');
+      cards[0].querySelector('[aria-label="Imagem anterior"]').click();
+      check(currentImage() === '/api/imagens/13' && intervals.size === 1 &&
+        [...intervals.values()][0] !== timer && [...intervals.values()][0].delay === 3000,
+        'Controle manual não reiniciou o temporizador');
+      [...intervals.values()][0].callback();
+      check(currentImage() === '/api/imagens/11', 'Carrossel não avançou após controle manual');
+      $('busca').value = 'Uma imagem';
+      $('busca').dispatchEvent(new Event('input'));
+      check(intervals.size === 0, 'Temporizador não foi removido ao filtrar');
+      $('busca').value = '';
+      $('busca').dispatchEvent(new Event('input'));
+      check(intervals.size === 1, 'Carrossel não foi recriado ao limpar filtro');
       document.querySelector('.product-bottom button').click();
       $('cliente').value = 'Cliente'; $('telefone').value = '12345678';
       $('forma-pagamento').value = 'Pix';
