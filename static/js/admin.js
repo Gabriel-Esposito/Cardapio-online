@@ -17,10 +17,10 @@ async function carregarDashboard(){
 function alternarAba(aba){
   document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===aba));
   document.querySelectorAll('main > section').forEach(s=>s.classList.toggle('hidden',s.id!==`tab-${aba}`));
-  if(aba==='dashboard')carregarDashboard().catch(err=>$('dashboard-mensagem').textContent=err.message);
-  if(aba==='pedidos'||aba==='historico')carregarPedidos().catch(err=>alert(err.message));
-  if(aba==='produtos')carregarProdutos().catch(err=>alert(err.message));
-  if(aba==='usuarios')carregarUsuarios().catch(err=>$('usuarios-mensagem').textContent=err.message);
+  if(aba==='dashboard')carregarDashboard().catch(err=>window.appModal.show(err.message));
+  if(aba==='pedidos'||aba==='historico')carregarPedidos().catch(err=>window.appModal.show(err.message));
+  if(aba==='produtos')carregarProdutos().catch(err=>window.appModal.show(err.message));
+  if(aba==='usuarios')carregarUsuarios().catch(err=>window.appModal.show(err.message));
 }
 document.querySelectorAll('[data-tab]').forEach(btn=>btn.addEventListener('click',()=>alternarAba(btn.dataset.tab)));
 function limpar(){
@@ -55,8 +55,8 @@ async function carregarProdutos(){
     const tr=make('tr');for(const val of [p.emoji+' '+p.nome,p.categoria,moeda(p.preco),p.disponivel?'Sim':'Não'])tr.append(make('td',val));
     const actions=make('td'), edit=make('button','Editar'), del=make('button','Excluir');
     edit.addEventListener('click',()=>editar(p));
-    del.addEventListener('click',async()=>{if(!confirm(`Excluir ${p.nome}?`))return;
-      try{await api(`/api/produtos/${p.id}`,'DELETE');await carregarProdutos();}catch(err){alert(err.message);}});
+    del.addEventListener('click',async()=>{if(!await window.appModal.confirm(`Excluir ${p.nome}?`,{type:'warning',title:'Excluir produto?'}))return;
+      try{await api(`/api/produtos/${p.id}`,'DELETE');await carregarProdutos();}catch(err){window.appModal.show(err.message);}});
     actions.append(edit,del);tr.append(actions);$('tabela-produtos').append(tr);
   }
 }
@@ -86,14 +86,14 @@ async function carregarUsuarios(){
       $('cancelar-usuario').classList.remove('hidden');$('usuario').focus();
     });
     del.type='button';del.addEventListener('click',async()=>{
-      if(!confirm(`Excluir o usuário ${usuario.usuario}?`))return;
+      if(!await window.appModal.confirm(`Excluir o usuário ${usuario.usuario}?`,{type:'warning',title:'Excluir usuário?'}))return;
       let result;
       try{result=await api(`/api/usuarios/${usuario.id}`,'DELETE');}
-      catch(err){$('usuarios-mensagem').textContent=err.message;return;}
+      catch(err){window.appModal.show(err.message);return;}
       if(result.redirecionar){window.location.assign(result.redirecionar);return;}
       if($('usuario-id').value===String(usuario.id))limparUsuario();
       try{await carregarUsuarios();$('usuarios-mensagem').textContent='Usuário excluído.';}
-      catch(err){$('usuarios-mensagem').textContent=err.message;}
+      catch(err){window.appModal.show(err.message);}
     });
     actions.append(edit,del);tr.append(actions);tabela.append(tr);
   }
@@ -112,9 +112,9 @@ if($('form-produto')){
       const imagens=$('sem-capa').checked?[]:[...imagensAtuais,...await Promise.all(files.map(lerImagem))];
       const data={nome:$('nome').value,categoria_id:Number($('categoria').value),preco:$('preco').value,custo:$('custo').value,emoji:$('emoji').value,descricao:$('descricao').value,disponivel:$('disponivel').checked,imagens};
       await api(id?`/api/produtos/${id}`:'/api/produtos',id?'PUT':'POST',data);
-    }catch(err){$('produto-mensagem').textContent=err.message;return;}
+    }catch(err){window.appModal.show(err.message);return;}
     $('modal-produto').close();limpar();
-    try{await carregarProdutos();}catch(err){alert(err.message);}
+    try{await carregarProdutos();}catch(err){window.appModal.show(err.message);}
   });
   $('cancelar-usuario').addEventListener('click',limparUsuario);
   $('form-usuario').addEventListener('submit',async ev=>{
@@ -122,10 +122,10 @@ if($('form-produto')){
     let result;
     try{result=await api(id?`/api/usuarios/${id}`:'/api/usuarios',id?'PUT':'POST',
       {usuario:$('usuario').value,senha:$('senha').value,perfil:$('perfil').value});}
-    catch(err){$('usuario-mensagem').textContent=err.message;return;}
+    catch(err){window.appModal.show(err.message);return;}
     if(id && result.perfil_atual==='funcionario'){window.location.reload();return;}
     limparUsuario();$('usuario-mensagem').textContent=id?'Usuário atualizado.':'Usuário cadastrado.';
-    try{await carregarUsuarios();}catch(err){$('usuarios-mensagem').textContent=err.message;}
+    try{await carregarUsuarios();}catch(err){window.appModal.show(err.message);}
   });
 }
 async function carregarPedidos(){
@@ -143,9 +143,9 @@ async function carregarPedidos(){
       }
       select.addEventListener('change',async()=>{
         try{await api(`/api/pedidos/${p.id}/status`,'PATCH',{status:select.value});}
-        catch(err){alert(err.message);try{await carregarPedidos();}catch(reloadError){alert(reloadError.message);}return;}
+        catch(err){window.appModal.show(err.message);try{await carregarPedidos();}catch(reloadError){window.appModal.show(reloadError.message);}return;}
         try{await Promise.all([carregarPedidos(),carregarDashboard()]);}
-        catch(err){alert(err.message);}
+        catch(err){window.appModal.show(err.message);}
       });
       top.append(titulo,select);article.append(top);
       const ul=make('ul');for(const i of p.itens)ul.append(make('li',`${i.quantidade}× ${i.nome_produto} — ${moeda(i.subtotal)}`));
@@ -155,7 +155,7 @@ async function carregarPedidos(){
     }
   }
 }
-document.querySelectorAll('[data-recarregar-pedidos]').forEach(btn=>btn.addEventListener('click',()=>carregarPedidos().catch(err=>alert(err.message))));
-$('recarregar-dashboard').addEventListener('click',()=>carregarDashboard().catch(err=>$('dashboard-mensagem').textContent=err.message));
-$('sair').addEventListener('click',async()=>{try{await api('/api/logout','POST');window.location.assign('/login');}catch(err){alert(err.message);}});
-carregarDashboard().catch(err=>$('dashboard-mensagem').textContent=err.message);
+document.querySelectorAll('[data-recarregar-pedidos]').forEach(btn=>btn.addEventListener('click',()=>carregarPedidos().catch(err=>window.appModal.show(err.message))));
+$('recarregar-dashboard').addEventListener('click',()=>carregarDashboard().catch(err=>window.appModal.show(err.message)));
+$('sair').addEventListener('click',async()=>{try{await api('/api/logout','POST');window.location.assign('/login');}catch(err){window.appModal.show(err.message);}});
+carregarDashboard().catch(err=>window.appModal.show(err.message));
