@@ -91,6 +91,38 @@ $('form-pedido').addEventListener('submit',async(ev)=>{
   } catch(err) {$('mensagem-pedido').textContent=err.message;}
   finally {botao.disabled=carrinho.size===0;}
 });
+$('form-historico').addEventListener('submit',async(ev)=>{
+  ev.preventDefault();
+  const form=ev.currentTarget, botao=form.querySelector('button[type=submit]');
+  const lista=$('lista-meus-pedidos');
+  botao.disabled=true;
+  lista.replaceChildren();
+  $('historico-mensagem').textContent='Buscando seus pedidos...';
+  try {
+    const response=await fetch('/api/meus-pedidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+      cliente:$('historico-nome').value,telefone:$('historico-telefone').value})});
+    const pedidos=await response.json();
+    if(!response.ok)throw new Error(pedidos.erro||'Não foi possível consultar os pedidos.');
+    if(!pedidos.length) {
+      $('historico-mensagem').textContent='Nenhum pedido encontrado com esses dados.';
+      return;
+    }
+    $('historico-mensagem').textContent=`${pedidos.length} pedido(s) encontrado(s).`;
+    for(const pedido of pedidos) {
+      const card=elemento('article','order'), topo=elemento('div','order-top');
+      topo.append(elemento('strong','',`Pedido #${pedido.id} · ${pedido.criado_em}`),
+        elemento('strong','order-status',pedido.status));
+      card.append(topo);
+      const itens=elemento('ul');
+      for(const item of pedido.itens)
+        itens.append(elemento('li','',`${item.quantidade} × ${item.nome_produto} — ${dinheiro(item.subtotal)}`));
+      card.append(itens,elemento('p','muted',`Pagamento: ${pedido.forma_pagamento||'Não informado'} · Total: ${dinheiro(pedido.total)}`));
+      if(pedido.observacao)card.append(elemento('small','muted',`Observação: ${pedido.observacao}`));
+      lista.append(card);
+    }
+  } catch(err) {$('historico-mensagem').textContent=err.message;}
+  finally {botao.disabled=false;}
+});
 (async function iniciar(){
   try {
     const [a,b]=await Promise.all([fetch('/api/produtos'),fetch('/api/categorias')]);

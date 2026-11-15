@@ -367,6 +367,42 @@ def fazer_pedido():
         db.close()
 
 
+@app.post('/api/meus-pedidos')
+def consultar_pedidos_cliente():
+    data = request.get_json(silent=True) or {}
+    if not isinstance(data, dict):
+        return json_error('Informe nome e telefone válidos.')
+    cliente = str(data.get('cliente', '')).strip()
+    telefone_informado = str(data.get('telefone', '')).strip()
+    telefone = re.sub(r'\D', '', telefone_informado)
+    if (not 2 <= len(cliente) <= 120
+            or not re.fullmatch(r'[+()\d\s-]{8,30}', telefone_informado)
+            or len(telefone) < 8):
+        return json_error('Informe nome e telefone válidos.')
+
+    db = connect()
+    try:
+        with db.cursor() as cursor:
+            cursor.execute('''SELECT id,telefone,observacao,total,status,forma_pagamento,
+                              DATE_FORMAT(criado_em, '%%d/%%m/%%Y %%H:%%i') AS criado_em
+                              FROM pedidos WHERE LOWER(cliente)=LOWER(%s) ORDER BY id DESC''',
+                           (cliente,))
+            orders = [order for order in cursor.fetchall()
+                      if re.sub(r'\D', '', order['telefone']) == telefone]
+            for order in orders:
+                order.pop('telefone')
+                order['total'] = float(order['total'])
+                cursor.execute('''SELECT nome_produto,quantidade,preco_unitario,subtotal
+                                  FROM itens_pedido WHERE pedido_id=%s ORDER BY id''', (order['id'],))
+                order['itens'] = cursor.fetchall()
+                for item in order['itens']:
+                    item['preco_unitario'] = float(item['preco_unitario'])
+                    item['subtotal'] = float(item['subtotal'])
+            return jsonify(orders)
+    finally:
+        db.close()
+
+
 @app.get('/api/pedidos')
 @admin_required
 def listar_pedidos():

@@ -6,6 +6,7 @@ Projeto acadêmico simples de uma doceria, com **HTML + CSS + JavaScript puro**,
 - Cardápio público com pesquisa por nome e filtro de categoria.
 - Carrinho com alteração de quantidades, total e finalização de pedido.
 - Pedidos salvos em MySQL (o total é recalculado pelo servidor).
+- Clientes podem consultar seus pedidos pelo nome e telefone informados na compra.
 - Login do administrador (senha criptografada com hash).
 - Painel: cadastrar, editar, excluir e marcar produtos como disponíveis.
 - Painel: visualizar pedidos e alterar status.
@@ -124,6 +125,7 @@ doceria_online/
 | GET | `/api/categorias` | Listar categorias |
 | GET | `/api/produtos` | Listar produtos |
 | POST | `/api/pedidos` | Criar pedido |
+| POST | `/api/meus-pedidos` | Consultar pedidos pelo nome e telefone do cliente |
 | POST | `/api/login` | Autenticar administrador |
 | POST | `/api/logout` | Encerrar sessão |
 | POST | `/api/produtos` | Criar produto (admin) |

@@ -39,6 +39,10 @@ window.fetch = async (path, opts={}) => {
   else if (path === '/api/categorias') data = [{id:1, nome:'Bolos', emoji:'🍰'}];
   else if (path === '/api/produtos' && (!opts.method || opts.method === 'GET')) data = [product];
   else if (path === '/api/pedidos' && opts.method === 'POST') data = {pedido_id:42, total:10};
+  else if (path === '/api/meus-pedidos' && opts.method === 'POST') {
+    const customer = JSON.parse(opts.body);
+    data = customer.cliente === 'Cliente' && customer.telefone === '(32) 99999-9999' ? [testOrder] : [];
+  }
   else if (path === '/api/pedidos' && opts.method === 'GET') data = [testOrder];
   else if (path === '/api/pedidos/42/status' && opts.method === 'PATCH') testOrder.status = JSON.parse(opts.body).status;
   else if (path === '/api/usuarios' && opts.method === 'GET') data = testUsers;
@@ -106,6 +110,13 @@ window.addEventListener('load', async () => {
       await wait();
       check($('mensagem-pedido').textContent.includes('Pedido #42 registrado com sucesso'), $('mensagem-pedido').textContent);
       check($('cliente').value === '' && $('contador').textContent === '0', 'Pedido não foi limpo');
+      $('historico-nome').value = 'Cliente';
+      $('historico-telefone').value = '(32) 99999-9999';
+      $('form-historico').requestSubmit();
+      await wait();
+      check($('historico-mensagem').textContent.includes('1 pedido'), $('historico-mensagem').textContent);
+      check($('lista-meus-pedidos').textContent.includes('Pedido #42') &&
+        $('lista-meus-pedidos').textContent.includes('Bolo'), 'Histórico de pedidos não foi exibido');
     }
     document.body.dataset.testResult = 'OK';
   } catch (error) {
