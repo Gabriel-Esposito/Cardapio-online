@@ -3,6 +3,7 @@ const dinheiro = (n) => Number(n).toLocaleString('pt-BR', {style:'currency', cur
 let produtos = [], categoria = 0;
 const carrinho = new Map();
 let intervalosImagens = [];
+let clienteHistorico = '', telefoneHistorico = '';
 $('ano').textContent = new Date().getFullYear();
 
 function elemento(tag, classe, texto) {
@@ -99,31 +100,91 @@ $('form-pedido').addEventListener('submit',async(ev)=>{
       itens:[...carrinho].map(([id,quantidade])=>({id,quantidade}))})});
     const data=await response.json(); if(!response.ok)throw new Error(data.erro||'Não foi possível enviar.');
     carrinho.clear();renderCarrinho();form.reset();
-    const sucesso=`Pedido #${data.pedido_id} registrado com sucesso! Total: ${dinheiro(data.total)}.`;
+    const sucesso=`Pedido registrado com sucesso! Total: ${dinheiro(data.total)}.\nConsulte o ID em "Meus pedidos"; ele será solicitado para cancelar o pedido.`;
     $('mensagem-pedido').textContent=sucesso;
     window.appModal.show(sucesso,{type:'success',title:'Pedido confirmado!'});
   } catch(err) {$('mensagem-pedido').textContent='';window.appModal.show(err.message);}
   finally {botao.disabled=carrinho.size===0;}
 });
+function atualizarAcaoCancelarTodos() {
+  const quantidade=$('lista-meus-pedidos').querySelectorAll('.order-cancel').length;
+  const botao=$('cancelar-todos-pedidos');
+  botao.textContent=`Cancelar todos os pedidos (${quantidade})`;
+  botao.classList.toggle('hidden',quantidade===0);
+}
+function marcarPedidoCancelado(codigo) {
+  const card=$('lista-meus-pedidos').querySelector(`[data-order-id="${codigo}"]`);
+  if(!card)return;
+  card.querySelector('.order-status').textContent='Cancelado';
+  const botao=card.querySelector('.order-cancel');
+  if(botao)botao.remove();
+  atualizarAcaoCancelarTodos();
+}
+async function validarCodigosCancelamento(codigos, cancelarTodos=false) {
+  const esperados=codigos.map(String);
+  const valor=await window.appModal.prompt(
+    !cancelarTodos&&esperados.length===1
+      ? 'Digite o ID do pedido para confirmar o cancelamento.'
+      : `Digite os IDs dos pedidos separados por vírgula para confirmar o cancelamento.`,
+    {type:'warning',title:'Confirme com o código do pedido',
+      inputLabel:!cancelarTodos&&esperados.length===1?'ID do pedido':'IDs dos pedidos',
+      placeholder:cancelarTodos?'IDs separados por vírgula':'Digite o ID do pedido',
+      confirmLabel:'Confirmar cancelamento',maxLength:10000,
+      inputMode:cancelarTodos?'text':'numeric'});
+  if(valor===null)return false;
+  const informados=valor.split(',').map(codigo=>codigo.trim());
+  const valido=informados.length===esperados.length
+    && new Set(informados).size===esperados.length
+    && informados.every(codigo=>/^[1-9]\d{0,9}$/.test(codigo)&&esperados.includes(codigo));
+  if(!valido) {
+    await window.appModal.show(
+      !cancelarTodos&&esperados.length===1
+        ?'O ID informado não corresponde ao pedido selecionado.'
+        :'Os IDs informados não correspondem aos pedidos selecionados.');
+    return false;
+  }
+  return true;
+}
+async function cancelarPedido(codigo, botao) {
+  botao.disabled=true;
+  try {
+    if(!await validarCodigosCancelamento([codigo]))return;
+    const response=await fetch('/api/cancelar-pedido',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({codigo:String(codigo),telefone:telefoneHistorico})});
+    const data=await response.json();
+    if(!response.ok)throw new Error(data.erro||'Não foi possível cancelar o pedido.');
+    marcarPedidoCancelado(codigo);
+    window.appModal.show(`Pedido #${codigo} cancelado com sucesso.`,{type:'success',title:'Pedido cancelado!'});
+  } catch(err) {window.appModal.show(err.message);}
+  finally {if(botao.isConnected)botao.disabled=false;}
+}
 $('form-historico').addEventListener('submit',async(ev)=>{
   ev.preventDefault();
   const form=ev.currentTarget, botao=form.querySelector('button[type=submit]');
   const lista=$('lista-meus-pedidos');
   botao.disabled=true;
   lista.replaceChildren();
+  $('cancelar-todos-pedidos').classList.add('hidden');
+  clienteHistorico='';
+  telefoneHistorico='';
   $('historico-mensagem').textContent='Buscando seus pedidos...';
   try {
+    const cliente=$('historico-nome').value;
+    const telefone=$('historico-telefone').value;
     const response=await fetch('/api/meus-pedidos',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-      cliente:$('historico-nome').value,telefone:$('historico-telefone').value})});
+      cliente,telefone})});
     const pedidos=await response.json();
     if(!response.ok)throw new Error(pedidos.erro||'Não foi possível consultar os pedidos.');
     if(!pedidos.length) {
       $('historico-mensagem').textContent='Nenhum pedido encontrado com esses dados.';
       return;
     }
+    clienteHistorico=cliente;
+    telefoneHistorico=telefone;
     $('historico-mensagem').textContent=`${pedidos.length} pedido(s) encontrado(s).`;
     for(const pedido of pedidos) {
       const card=elemento('article','order'), topo=elemento('div','order-top');
+      card.dataset.orderId=String(pedido.id);
       topo.append(elemento('strong','',`Pedido #${pedido.id} · ${pedido.criado_em}`),
         elemento('strong','order-status',pedido.status));
       card.append(topo);
@@ -132,9 +193,39 @@ $('form-historico').addEventListener('submit',async(ev)=>{
         itens.append(elemento('li','',`${item.quantidade} × ${item.nome_produto} — ${dinheiro(item.subtotal)}`));
       card.append(itens,elemento('p','muted',`Pagamento: ${pedido.forma_pagamento||'Não informado'} · Total: ${dinheiro(pedido.total)}`));
       if(pedido.observacao)card.append(elemento('small','muted',`Observação: ${pedido.observacao}`));
+      if(pedido.status==='Recebido') {
+        const acoes=elemento('div','order-actions');
+        const cancelar=elemento('button','btn subtle order-cancel','Cancelar pedido');
+        cancelar.type='button';
+        cancelar.addEventListener('click',()=>cancelarPedido(pedido.id,cancelar));
+        acoes.append(cancelar);
+        card.append(acoes);
+      }
       lista.append(card);
     }
+    atualizarAcaoCancelarTodos();
   } catch(err) {$('historico-mensagem').textContent='';window.appModal.show(err.message);}
+  finally {botao.disabled=false;}
+});
+$('cancelar-todos-pedidos').addEventListener('click',async(ev)=>{
+  const botao=ev.currentTarget;
+  const codigos=[...$('lista-meus-pedidos').querySelectorAll('.order-cancel')]
+    .map(cancelar=>cancelar.closest('.order').dataset.orderId);
+  if(!codigos.length)return;
+  botao.disabled=true;
+  try {
+    if(!await validarCodigosCancelamento(codigos,true))return;
+    const response=await fetch('/api/cancelar-todos-pedidos',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({cliente:clienteHistorico,telefone:telefoneHistorico,codigos})});
+    const data=await response.json();
+    if(!response.ok)throw new Error(data.erro||'Não foi possível cancelar os pedidos.');
+    data.cancelados.forEach(marcarPedidoCancelado);
+    const naoCancelados=data.nao_cancelados.length
+      ? `\nNão foi possível cancelar os pedidos #${data.nao_cancelados.join(', #')}, pois já não estão aguardando.`
+      : '';
+    window.appModal.show(`${data.cancelados.length} pedido(s) cancelado(s).${naoCancelados}`,
+      {type:naoCancelados?'warning':'success',title:'Cancelamento concluído'});
+  } catch(err) {window.appModal.show(err.message);}
   finally {botao.disabled=false;}
 });
 (async function iniciar(){

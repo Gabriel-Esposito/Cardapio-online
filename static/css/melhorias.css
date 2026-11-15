@@ -25,5 +25,7 @@
 .history-form label{margin:0}
 #historico-mensagem{margin:18px 0}
 .order-status{color:var(--pink-dark)}
+.order-actions{display:flex;justify-content:flex-end;margin-top:12px}
+#cancelar-todos-pedidos{margin:0 0 16px}
 @media(max-width:800px){.admin-shell{grid-template-columns:1fr;gap:0}.admin-sidebar{position:static;margin-top:15px}.admin-sidebar nav{display:flex;overflow-x:auto}.admin-sidebar .tab{white-space:nowrap}.admin-main{padding-top:25px}}
 @media(max-width:650px){.history-form{grid-template-columns:1fr}.history-form .btn{width:100%}}

@@ -145,6 +145,51 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(next(p for p in orders if p['id'] == order_id)['forma_pagamento'], 'Pix')
         self.assertIsNone(next(p for p in orders if p['id'] == 1)['forma_pagamento'])
 
+    def test_customer_can_cancel_received_order_with_code_and_phone(self):
+        response = self.client.post('/api/produtos', json=self.product(), headers=self.headers)
+        self.assertEqual(response.status_code, 201)
+        order = {'cliente': 'Cliente', 'telefone': '(12) 3456-7890', 'forma_pagamento': 'Pix',
+                 'itens': [{'id': response.json['id'], 'quantidade': 1}]}
+        response = self.client.post('/api/pedidos', json=order)
+        self.assertEqual(response.status_code, 201)
+        order_id = response.json['pedido_id']
+
+        self.assertEqual(self.client.post('/api/cancelar-pedido',
+            json={'codigo': order_id, 'telefone': '00000000'}).status_code, 404)
+        response = self.client.post('/api/cancelar-pedido',
+            json={'codigo': str(order_id), 'telefone': '12 3456-7890'})
+        self.assertEqual(response.status_code, 200)
+        history = self.client.post('/api/meus-pedidos',
+            json={'cliente': 'Cliente', 'telefone': '1234567890'})
+        self.assertEqual(next(item for item in history.json if item['id'] == order_id)['status'], 'Cancelado')
+        self.assertEqual(self.client.post('/api/cancelar-pedido',
+            json={'codigo': order_id, 'telefone': '1234567890'}).status_code, 409)
+
+        response = self.client.post('/api/pedidos', json=order)
+        self.assertEqual(response.status_code, 201)
+        order_id = response.json['pedido_id']
+        self.assertEqual(self.client.patch(f'/api/pedidos/{order_id}/status',
+            json={'status': 'Preparando'}, headers=self.headers).status_code, 200)
+        self.assertEqual(self.client.post('/api/cancelar-pedido',
+            json={'codigo': order_id, 'telefone': '1234567890'}).status_code, 409)
+
+        cancel_all_ids = []
+        for _ in range(2):
+            response = self.client.post('/api/pedidos', json=order)
+            self.assertEqual(response.status_code, 201)
+            cancel_all_ids.append(response.json['pedido_id'])
+        other_order = {**order, 'cliente': 'Outra pessoa'}
+        response = self.client.post('/api/pedidos', json=other_order)
+        self.assertEqual(response.status_code, 201)
+        other_id = response.json['pedido_id']
+        response = self.client.post('/api/cancelar-todos-pedidos', json={
+            'cliente': 'Cliente', 'telefone': '1234567890', 'codigos': cancel_all_ids})
+        self.assertEqual(response.status_code, 200)
+        self.assertCountEqual(response.json['cancelados'], cancel_all_ids)
+        self.assertNotIn(other_id, response.json['cancelados'])
+        self.assertEqual(self.client.post('/api/cancelar-todos-pedidos', json={
+            'cliente': 'Cliente', 'telefone': '1234567890', 'codigos': [other_id]}).status_code, 404)
+
     def test_images_and_permissions(self):
         png = 'data:image/png;base64,' + base64.b64encode(b'\x89PNG\r\n\x1a\nexample').decode()
         self.assertEqual(self.client.post('/api/produtos', json=self.product(imagens=[png]*4), headers=self.headers).status_code, 400)
