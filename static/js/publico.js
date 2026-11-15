@@ -99,8 +99,10 @@ $('form-pedido').addEventListener('submit',async(ev)=>{
       itens:[...carrinho].map(([id,quantidade])=>({id,quantidade}))})});
     const data=await response.json(); if(!response.ok)throw new Error(data.erro||'Não foi possível enviar.');
     carrinho.clear();renderCarrinho();form.reset();
-    $('mensagem-pedido').textContent=`Pedido #${data.pedido_id} registrado com sucesso! Total: ${dinheiro(data.total)}.`;
-  } catch(err) {$('mensagem-pedido').textContent=err.message;}
+    const sucesso=`Pedido #${data.pedido_id} registrado com sucesso! Total: ${dinheiro(data.total)}.`;
+    $('mensagem-pedido').textContent=sucesso;
+    window.appModal.show(sucesso,{type:'success',title:'Pedido confirmado!'});
+  } catch(err) {$('mensagem-pedido').textContent='';window.appModal.show(err.message);}
   finally {botao.disabled=carrinho.size===0;}
 });
 $('form-historico').addEventListener('submit',async(ev)=>{
@@ -132,7 +134,7 @@ $('form-historico').addEventListener('submit',async(ev)=>{
       if(pedido.observacao)card.append(elemento('small','muted',`Observação: ${pedido.observacao}`));
       lista.append(card);
     }
-  } catch(err) {$('historico-mensagem').textContent=err.message;}
+  } catch(err) {$('historico-mensagem').textContent='';window.appModal.show(err.message);}
   finally {botao.disabled=false;}
 });
 (async function iniciar(){
@@ -140,5 +142,5 @@ $('form-historico').addEventListener('submit',async(ev)=>{
     const [a,b]=await Promise.all([fetch('/api/produtos'),fetch('/api/categorias')]);
     if(!a.ok||!b.ok)throw new Error('Banco de dados indisponível.');
     produtos=await a.json();renderCategorias(await b.json());renderProdutos();renderCarrinho();
-  } catch(err){$('mensagem-cardapio').textContent='Não foi possível carregar o cardápio. Verifique o servidor e o MySQL.';}
+  } catch(err){$('mensagem-cardapio').textContent='';window.appModal.show('Não foi possível carregar o cardápio. Verifique o servidor e o MySQL.');}
 })();

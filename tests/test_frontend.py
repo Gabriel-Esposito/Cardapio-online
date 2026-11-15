@@ -38,8 +38,6 @@ if (location.pathname === '/') {
 }
 const calls = [];
 let testUsers = [{id:2, usuario:'func-teste', perfil:'funcionario'}];
-let confirmDeletion = true;
-window.confirm = () => confirmDeletion;
 const testOrder = {id:42, cliente:'Cliente', criado_em:'01/01/2026 10:00', telefone:'12345678',
   status:'Recebido', total:10, forma_pagamento:'Pix', observacao:'',
   itens:[{nome_produto:'Bolo', quantidade:1, subtotal:10}]};
@@ -116,12 +114,16 @@ window.addEventListener('load', async () => {
       check(update && JSON.parse(update[2]).senha === '', 'Senha não foi preservada na edição');
       check($('tabela-usuarios').textContent.includes('func-alterado'), 'Lista não foi atualizada');
       $('tabela-usuarios').querySelector('button').click();
-      confirmDeletion = false;
       $('tabela-usuarios').querySelectorAll('button')[1].click();
       await wait();
+      const confirmation = document.querySelector('.feedback-modal');
+      check(confirmation.open && confirmation.dataset.type === 'warning', 'Confirmação de exclusão não apareceu');
+      confirmation.querySelector('[data-modal-cancel]').click();
+      await wait();
       check(!calls.some(([path, method]) => path === '/api/usuarios/2' && method === 'DELETE'), 'Exclusão cancelada foi enviada');
-      confirmDeletion = true;
       $('tabela-usuarios').querySelectorAll('button')[1].click();
+      await wait();
+      document.querySelector('.feedback-modal').querySelector('[data-modal-accept]').click();
       await wait();
       check(calls.some(([path, method]) => path === '/api/usuarios/2' && method === 'DELETE'), 'Exclusão não foi enviada');
       check(!$('tabela-usuarios').textContent.includes('func-alterado') && !$('usuario-id').value, 'Lista ou formulário não foi atualizado');
@@ -141,6 +143,16 @@ window.addEventListener('load', async () => {
       toggle.click();
       check(password.type === 'password' && password.value === 'senha123' && toggle.getAttribute('aria-pressed') === 'false'
         && toggle.getAttribute('aria-label') === 'Mostrar senha' && !calls.length, 'Senha não voltou a ficar oculta');
+      const pending = window.appModal.show('Erro de teste');
+      await wait();
+      const feedback = document.querySelector('.feedback-modal');
+      const rect = feedback.getBoundingClientRect();
+      check(feedback.open && feedback.dataset.type === 'error' && $('feedback-modal-message').textContent === 'Erro de teste'
+        && Math.abs(rect.left + rect.width/2 - document.documentElement.clientWidth/2) < 2
+        && Math.abs(rect.top + rect.height/2 - document.documentElement.clientHeight/2) < 2,
+        'Modal de erro não apareceu centralizado');
+      feedback.querySelector('[data-modal-accept]').click();
+      await pending;
     } else {
       const cards = document.querySelectorAll('.product');
       const image = cards[0].querySelector('img');
@@ -174,6 +186,13 @@ window.addEventListener('load', async () => {
       $('form-pedido').requestSubmit();
       await wait();
       check($('mensagem-pedido').textContent.includes('Pedido #42 registrado com sucesso'), $('mensagem-pedido').textContent);
+      const feedback = document.querySelector('.feedback-modal');
+      check(feedback.open && feedback.dataset.type === 'success', 'Confirmação do pedido não apareceu');
+      const feedbackRect = feedback.getBoundingClientRect();
+      check(Math.abs(feedbackRect.left + feedbackRect.width/2 - document.documentElement.clientWidth/2) < 2 &&
+        Math.abs(feedbackRect.top + feedbackRect.height/2 - document.documentElement.clientHeight/2) < 2,
+        'Modal de feedback fora do centro');
+      feedback.querySelector('[data-modal-accept]').click();
       check($('cliente').value === '' && $('contador').textContent === '0', 'Pedido não foi limpo');
       $('historico-nome').value = 'Cliente';
       $('historico-telefone').value = '(32) 99999-9999';

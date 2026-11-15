@@ -16,6 +16,7 @@ Projeto acadêmico simples de uma doceria, com **HTML + CSS + JavaScript puro**,
 - Produtos podem ter até três imagens (PNG, JPEG ou GIF, até 2 MB cada); com mais de uma, o carrossel avança a cada 3 segundos. Sem capa usa o emoji da categoria.
 - Forma de pagamento registrada no pedido: dinheiro, Pix, cartão de crédito ou débito.
 - Faturamento dos pedidos concluídos calculado pela soma dos preços registrados nos pedidos, sem descontar custos.
+- Avisos, erros e confirmações apresentados em modais acessíveis centralizados na tela.
 
 ## Requisitos
 - Windows 10/11 com **Python 3.10+** instalado e marcado como `Add Python to PATH`.
@@ -112,6 +113,7 @@ doceria_online/
 └── static/
     ├── css/style.css
     └── js/
+        ├── modal.js
         ├── publico.js
         ├── login.js
         └── admin.js

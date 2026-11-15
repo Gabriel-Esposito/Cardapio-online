@@ -15,5 +15,5 @@ document.getElementById('form-login').addEventListener('submit', async (ev)=>{
     const r=await fetch('/api/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({usuario:form.elements.namedItem('usuario').value,senha:form.elements.namedItem('senha').value})});
     const data=await r.json();if(!r.ok)throw new Error(data.erro||'Erro no login');
     window.location.assign(data.redirecionar);
-  } catch(err){mensagem.textContent=err.message;}
+  } catch(err){mensagem.textContent='';window.appModal.show(err.message);}
 });
