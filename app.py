@@ -546,6 +546,29 @@ def editar_usuario(user_id):
         db.close()
 
 
+@app.delete('/api/usuarios/<int:user_id>')
+@manager_required
+def excluir_usuario(user_id):
+    db = connect()
+    try:
+        with db.cursor() as cursor:
+            cursor.execute('SELECT id,perfil FROM administradores ORDER BY id FOR UPDATE')
+            users = cursor.fetchall()
+            target = next((user for user in users if user['id'] == user_id), None)
+            if not target:
+                return json_error('Usuário não encontrado.', 404)
+            if target['perfil'] == 'admin' and sum(user['perfil'] == 'admin' for user in users) <= 1:
+                return json_error('É necessário manter pelo menos um administrador.', 400)
+            cursor.execute('DELETE FROM administradores WHERE id=%s', (user_id,))
+        db.commit()
+        if user_id == session.get('admin_id'):
+            session.clear()
+            return jsonify({'ok': True, 'redirecionar': '/login'})
+        return jsonify({'ok': True})
+    finally:
+        db.close()
+
+
 @app.errorhandler(413)
 def request_too_large(_error):
     return json_error('Arquivos muito grandes. Use até 3 imagens de 2 MB.', 413)

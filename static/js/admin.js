@@ -77,7 +77,7 @@ async function carregarUsuarios(){
   const tabela=$('tabela-usuarios');tabela.replaceChildren();
   $('usuarios-mensagem').textContent=usuarios.length?'':'Nenhum usuário cadastrado.';
   for(const usuario of usuarios){
-    const tr=make('tr'), actions=make('td'), edit=make('button','Editar');
+    const tr=make('tr'), actions=make('td'), edit=make('button','Editar'), del=make('button','Excluir');
     tr.append(make('td',usuario.usuario),make('td',usuario.perfil==='admin'?'Administrador':'Funcionário'));
     edit.type='button';edit.addEventListener('click',()=>{
       limparUsuario();$('usuario-id').value=usuario.id;$('usuario').value=usuario.usuario;
@@ -85,7 +85,17 @@ async function carregarUsuarios(){
       $('titulo-usuario').textContent='Editar usuário';$('salvar-usuario').textContent='Salvar alterações';
       $('cancelar-usuario').classList.remove('hidden');$('usuario').focus();
     });
-    actions.append(edit);tr.append(actions);tabela.append(tr);
+    del.type='button';del.addEventListener('click',async()=>{
+      if(!confirm(`Excluir o usuário ${usuario.usuario}?`))return;
+      let result;
+      try{result=await api(`/api/usuarios/${usuario.id}`,'DELETE');}
+      catch(err){$('usuarios-mensagem').textContent=err.message;return;}
+      if(result.redirecionar){window.location.assign(result.redirecionar);return;}
+      if($('usuario-id').value===String(usuario.id))limparUsuario();
+      try{await carregarUsuarios();$('usuarios-mensagem').textContent='Usuário excluído.';}
+      catch(err){$('usuarios-mensagem').textContent=err.message;}
+    });
+    actions.append(edit,del);tr.append(actions);tabela.append(tr);
   }
 }
 if($('form-produto')){

@@ -209,6 +209,35 @@ class IntegrationTests(unittest.TestCase):
         self.assertEqual(employee.post('/api/login', json={'usuario': 'novo-nome', 'senha': 'senha123'}).status_code, 401)
         self.assertEqual(employee.post('/api/login', json={'usuario': 'novo-nome', 'senha': 'nova-senha'}).status_code, 200)
 
+    def test_user_deletion_and_session_invalidation(self):
+        self.assertEqual(self.client.delete('/api/usuarios/1', headers=self.headers).status_code, 400)
+        self.assertEqual(self.client.delete('/api/usuarios/999999', headers=self.headers).status_code, 404)
+        self.assertEqual(self.client.delete('/api/usuarios/1').status_code, 403)
+        for username, role in [('excluir-func', 'funcionario'), ('excluir-admin', 'admin')]:
+            response = self.client.post('/api/usuarios',
+                json={'usuario': username, 'senha': 'senha123', 'perfil': role}, headers=self.headers)
+            self.assertEqual(response.status_code, 201)
+        users = self.client.get('/api/usuarios').json
+        employee_id = next(user['id'] for user in users if user['usuario'] == 'excluir-func')
+        admin_id = next(user['id'] for user in users if user['usuario'] == 'excluir-admin')
+        employee = site.app.test_client()
+        self.assertEqual(employee.post('/api/login', json={'usuario': 'excluir-func', 'senha': 'senha123'}).status_code, 200)
+        with employee.session_transaction() as session:
+            employee_headers = {'X-CSRF-Token': session['csrf']}
+        self.assertEqual(employee.delete(f'/api/usuarios/{admin_id}', headers=employee_headers).status_code, 403)
+        self.assertEqual(self.client.delete(f'/api/usuarios/{employee_id}', headers=self.headers).status_code, 200)
+        self.assertEqual(employee.get('/api/pedidos').status_code, 401)
+        self.assertEqual(employee.post('/api/login', json={'usuario': 'excluir-func', 'senha': 'senha123'}).status_code, 401)
+        other_admin = site.app.test_client()
+        self.assertEqual(other_admin.post('/api/login', json={'usuario': 'excluir-admin', 'senha': 'senha123'}).status_code, 200)
+        with other_admin.session_transaction() as session:
+            admin_headers = {'X-CSRF-Token': session['csrf']}
+        response = other_admin.delete(f'/api/usuarios/{admin_id}', headers=admin_headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json['redirecionar'], '/login')
+        self.assertEqual(other_admin.get('/api/usuarios').status_code, 401)
+        self.assertEqual(self.client.delete('/api/usuarios/1', headers=self.headers).status_code, 400)
+
 
 if __name__ == '__main__':
     unittest.main()
